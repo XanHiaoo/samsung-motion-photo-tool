@@ -67,13 +67,12 @@
         bindtimeupdate="onPreviewTimeUpdate"
         binderror="onVideoError"
       />
-      <image wx:if="{{!manualMode && coverPreviewPath && !previewPlaying}}" class="frame-cover-preview" src="{{coverPreviewPath}}" mode="aspectFit" />
+      <image wx:if="{{!manualMode && coverPreviewPath && !previewPlaying && !coverDragging && !rangeDragging}}" class="frame-cover-preview" src="{{coverPreviewPath}}" mode="aspectFit" />
     </view>
 
     <button class="secondary-button trim-button" disabled="{{picking || capturingCover || outputBusy}}" bindtap="togglePreviewPlayback">{{previewPlaying ? '暂停预览' : '播放所选片段'}}</button>
     <view class="clip-summary"><text>片段 {{clipStartLabel}} — {{clipEndLabel}}</text><text class="frame-slider-current">{{clipDurationLabel}}</text></view>
-    <view class="clip-control"><text>起点</text><slider min="0" max="{{video.durationSeconds}}" step="0.05" value="{{clipStartSeconds}}" data-edge="start" disabled="{{picking || capturingCover || outputBusy}}" bindchange="onClipChange" activeColor="#2869e8" block-size="20" /></view>
-    <view class="clip-control"><text>终点</text><slider min="0" max="{{video.durationSeconds}}" step="0.05" value="{{clipEndSeconds}}" data-edge="end" disabled="{{picking || capturingCover || outputBusy}}" bindchange="onClipChange" activeColor="#2869e8" block-size="20" /></view>
+    <range-slider duration="{{video.durationSeconds}}" start="{{clipStartSeconds}}" end="{{clipEndSeconds}}" disabled="{{picking || capturingCover || outputBusy}}" bindchanging="onClipChanging" bindchange="onClipChange" />
     <view class="clip-reset" bindtap="onResetClip">恢复完整视频</view>
     <text class="editor-hint">生成时快速裁剪并保留原编码，部分视频会保留片段前的解码帧；播放从所选起点开始。</text>
     <view wx:if="{{previewStatus === 'loading'}}" class="preview-status">正在准备视频预览…</view>
@@ -96,12 +95,14 @@
       activeColor="#2869e8"
       backgroundColor="#e8edf3"
       disabled="{{capturingCover || outputBusy || picking}}"
+      bindchanging="onCoverChanging"
       bindchange="onCoverChange"
     />
     <view class="frame-slider-labels">
       <text>起点 {{clipStartLabel}}</text>
       <text>终点 {{clipEndLabel}}</text>
     </view>
+    <text wx:if="{{!manualMode}}" class="editor-hint">拖动直接预览画面，点击生成时提取高清封面。</text>
 
     <view wx:if="{{capturingCover}}" class="progress-card">
       <view class="progress-indicator"></view>
@@ -159,7 +160,7 @@
       <ui-icon name="images-white" size="19" />
       <text>保存到相册</text>
     </button>
-    <button wx:else class="primary-button" disabled="{{!coverFrameInfo || capturingCover || outputBusy || picking}}" loading="{{capturingCover || outputBusy}}" hover-class="primary-button-hover" bindtap="onGenerateMotionPhoto">
+    <button wx:else class="primary-button" disabled="{{(manualMode && !photo) || capturingCover || outputBusy || picking || rangeDragging || coverDragging}}" loading="{{capturingCover || outputBusy}}" hover-class="primary-button-hover" bindtap="onGenerateMotionPhoto">
       <ui-icon name="images-white" size="19" />
       <text>{{capturingCover ? '正在提取封面…' : outputBusy ? '正在生成…' : '生成 Motion Photo'}}</text>
     </button>

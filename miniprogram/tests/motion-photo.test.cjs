@@ -138,7 +138,7 @@ test('video page generates a real output, prevents repeat clicks, handles denied
   delete require.cache[modulePath];
   require(modulePath);
   const page = Object.assign({}, definition, {
-    data: { ...definition.data, video: { path: '/video.mp4', durationSeconds: 2 }, clipStartSeconds: 0, clipEndSeconds: 2, coverPreviewPath: '/cover.jpg',
+    data: { ...definition.data, flow: { ...definition.data.flow, coverTimeSeconds: 1.25 }, video: { path: '/video.mp4', durationSeconds: 2 }, clipStartSeconds: 0, clipEndSeconds: 2, coverPreviewPath: '/cover.jpg',
       coverFrameInfo: { path: '/cover.jpg', requestedSeconds: 1.25 } },
     setData(update) { Object.assign(this.data, update); },
   });

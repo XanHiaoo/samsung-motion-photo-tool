@@ -136,6 +136,8 @@ function createVideoPage(options = {}) { return {
     clipStartLabel: '00:00.0',
     clipEndLabel: '00:00.0',
     clipDurationLabel: '00:00.0',
+    rangeDragging: false,
+    coverDragging: false,
     insets: {},
     flow: createInitialVideoState(),
     video: null,
@@ -277,20 +279,26 @@ function createVideoPage(options = {}) { return {
   },
 
   clearMotionOutput() {
+    if (!this.data.flow.outputPath && !this.data.showMotionResult && !this.data.outputInfo && !this.data.outputError
+        && !this.data.outputStatus && !this.data.albumPermissionDenied && this.data.flow.status === VIDEO_FLOW_STATES.READY && !this.data.flow.error) return;
     if (this.data.flow.outputPath) removeTemporaryFile(this.data.flow.outputPath);
     this.setData({ showMotionResult: false, outputInfo: null, outputError: '', outputStatus: '', albumPermissionDenied: false,
       flow: Object.assign({}, this.data.flow, { status: VIDEO_FLOW_STATES.READY, outputPath: null, error: null }) });
   },
 
-  async onClipChange(event) {
+  onClipChanging(event) {
+    return this.updateClipFromEvent(event, false);
+  },
+
+  onClipChange(event) {
+    return this.updateClipFromEvent(event, true);
+  },
+
+  updateClipFromEvent(event, final) {
     if (!this.data.video || this.data.picking || this.data.capturingCover || this.data.outputBusy || this.isUnloading) return;
-    const duration = this.data.video.durationSeconds;
-    const minimum = Math.min(0.1, duration);
-    const edge = event.currentTarget.dataset.edge;
-    const value = Number(event.detail.value) || 0;
-    const start = edge === 'start' ? Math.min(value, this.data.clipEndSeconds - minimum) : this.data.clipStartSeconds;
-    const end = edge === 'end' ? Math.max(value, start + minimum) : this.data.clipEndSeconds;
-    return this.applyClipRange(start, end);
+    const { start, end, edge } = event.detail;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+    return this.applyClipRange(start, end, final, edge);
   },
 
   onResetClip() {
@@ -298,21 +306,25 @@ function createVideoPage(options = {}) { return {
     return this.applyClipRange(0, this.data.video.durationSeconds);
   },
 
-  applyClipRange(start, end) {
+  applyClipRange(start, end, final = true, edge = 'start') {
     const range = clipRange(this.data.video.durationSeconds, start, end);
     const cover = coverInClip(this.data.flow.coverTimeSeconds, range);
-    this.pausePreview(); this.clearMotionOutput();
+    if (this.data.previewPlaying) this.pausePreview();
+    if (range.start !== this.data.clipStartSeconds || range.end !== this.data.clipEndSeconds) this.clearMotionOutput();
+    if (!this.data.manualMode && this.data.coverFrameInfo && this.data.coverFrameInfo.requestedSeconds !== cover) this.discardCoverFrame();
     this.setData({ clipStartSeconds: range.start, clipEndSeconds: range.end,
       clipStartLabel: formatFrameTime(range.start), clipEndLabel: formatFrameTime(range.end), clipDurationLabel: formatFrameTime(range.duration),
       sliderMaxSeconds: coverInClip(range.end, range),
-      flow: Object.assign({}, this.data.flow, { coverTimeSeconds: cover }), coverTimeLabel: formatFrameTime(cover) });
-    this.seekPreview(range.start);
-    return this.captureCoverAt(cover);
+      rangeDragging: !final,
+      coverFrameInfo: this.data.manualMode && this.data.photo ? Object.assign({}, this.data.photo, { requestedSeconds: cover }) : this.data.coverFrameInfo,
+      flow: Object.assign({}, this.data.flow, { coverTimeSeconds: cover }), coverTimeLabel: formatFrameTime(cover), coverError: '', coverDiagnosticText: '' });
+    this.queuePreviewSeek(final ? cover : edge === 'end' ? coverInClip(range.end, range) : range.start, final);
   },
 
   async importVideo(picker) {
     if (this.data.picking || this.data.capturingCover || this.data.outputBusy || this.isUnloading) return;
     const requestId = ++this.importRequestId;
+    this.cancelPreviewSeek();
     this.importFlowBeforeRequest = this.data.flow;
     this.pausePreview();
     const preparingFlow = this.data.video
@@ -431,6 +443,9 @@ function createVideoPage(options = {}) { return {
     });
 
     this.importFlowBeforeRequest = null;
+    this.videoReady = false;
+    this.videoContext = null;
+    this.pendingPreviewSeek = 0;
     this.setData({
       video: selectedVideo,
       videoInfo,
@@ -439,6 +454,8 @@ function createVideoPage(options = {}) { return {
       clipStartLabel: '00:00.0',
       clipEndLabel: formatFrameTime(durationSeconds),
       clipDurationLabel: formatFrameTime(durationSeconds),
+      rangeDragging: false,
+      coverDragging: false,
       flow,
       picking: false,
       importStage: 'idle',
@@ -461,10 +478,9 @@ function createVideoPage(options = {}) { return {
       albumPermissionDenied: false,
     }, () => {
       if (this.isUnloading || !this.data.video || this.data.video.path !== video.path) return;
-      this.videoReady = false;
-      this.pendingPreviewSeek = 0;
       try {
         this.videoContext = wx.createVideoContext('source-video', this);
+        this.applyPendingPreviewSeek();
       } catch (error) {
         this.setData({
           previewStatus: 'error',
@@ -478,7 +494,7 @@ function createVideoPage(options = {}) { return {
         this.installPhoto(this.data.photo.sourcePath, this.data.photo.name)
           .catch(error => { if (!this.isUnloading) this.setData({ photoError: getErrorMessage(error, '调整封面失败，请重新选择照片。', 'photo'), coverFrameInfo: null }); })
           .finally(() => { if (!this.isUnloading) this.setData({ picking: false }); });
-      } else this.captureCoverAt(0);
+      }
     });
   },
 
@@ -517,7 +533,8 @@ function createVideoPage(options = {}) { return {
   },
 
   togglePreviewPlayback() {
-    if (this.isUnloading || !this.data.video || this.data.capturingCover || !this.videoContext) return;
+    if (this.isUnloading || !this.data.video || this.data.capturingCover || this.data.picking || this.data.outputBusy || !this.videoContext) return;
+    this.cancelPreviewSeek();
     if (this.data.previewPlaying) {
       this.pausePreview();
       return;
@@ -548,6 +565,25 @@ function createVideoPage(options = {}) { return {
     this.applyPendingPreviewSeek();
   },
 
+  queuePreviewSeek(seconds, flush) {
+    this.scrubSeekTarget = seconds;
+    this.scrubSeekSource = this.data.video && this.data.video.path;
+    if (flush) {
+      this.cancelPreviewSeek();
+      this.seekPreview(seconds);
+    } else if (!this.previewSeekTimer) {
+      this.previewSeekTimer = setTimeout(() => {
+        this.previewSeekTimer = null;
+        if (!this.isUnloading && this.data.video && this.data.video.path === this.scrubSeekSource) this.seekPreview(this.scrubSeekTarget);
+      }, 60);
+    }
+  },
+
+  cancelPreviewSeek() {
+    if (this.previewSeekTimer) clearTimeout(this.previewSeekTimer);
+    this.previewSeekTimer = null;
+  },
+
   applyPendingPreviewSeek() {
     if (!this.videoReady || !this.videoContext || this.pendingPreviewSeek === null) return;
     const target = this.pendingPreviewSeek;
@@ -567,13 +603,32 @@ function createVideoPage(options = {}) { return {
     }
   },
 
-  onCoverChange(event) {
-    if (!this.data.video || this.data.capturingCover || this.data.outputBusy || this.data.picking) return;
+  onCoverChanging(event) { return this.selectCover(event, false); },
+
+  onCoverChange(event) { return this.selectCover(event, true); },
+
+  discardCoverFrame() {
+    if (!this.data.manualMode) {
+      if (!this.data.coverPreviewPath && !this.data.coverFrameInfo) return;
+      removeTemporaryFiles([this.data.coverPreviewPath, this.data.coverFrameInfo && this.data.coverFrameInfo.path]);
+      this.setData({ coverPreviewPath: '', coverFrameInfo: null });
+    }
+  },
+
+  selectCover(event, final) {
+    if (!this.data.video || this.data.capturingCover || this.data.outputBusy || this.data.picking || this.isUnloading) return;
     const requested = Number(event.detail && event.detail.value) || 0;
-    const seconds = Math.max(0, Math.min(this.data.sliderMaxSeconds, Math.round(requested * 20) / 20));
-    this.pausePreview();
-    this.seekPreview(seconds);
-    this.captureCoverAt(seconds);
+    const range = clipRange(this.data.video.durationSeconds, this.data.clipStartSeconds, this.data.clipEndSeconds);
+    const seconds = coverInClip(Math.round(requested * 20) / 20, range);
+    if (this.data.previewPlaying) this.pausePreview();
+    if (seconds !== this.data.flow.coverTimeSeconds) {
+      this.clearMotionOutput();
+      this.discardCoverFrame();
+    }
+    this.setData({ coverDragging: !final, coverTimeLabel: formatFrameTime(seconds), coverError: '', coverDiagnosticText: '',
+      coverFrameInfo: this.data.manualMode && this.data.photo ? Object.assign({}, this.data.photo, { requestedSeconds: seconds }) : this.data.coverFrameInfo,
+      flow: Object.assign({}, this.data.flow, { coverTimeSeconds: seconds }) });
+    this.queuePreviewSeek(seconds, final);
   },
 
   async captureCoverAt(seconds) {
@@ -592,7 +647,7 @@ function createVideoPage(options = {}) { return {
     const previousOutputPath = this.data.flow.outputPath;
     const requestId = (this.frameRequestId || 0) + 1;
     this.frameRequestId = requestId;
-    const coverTimeSeconds = Math.max(0, Math.min(this.data.sliderMaxSeconds, Number(seconds) || 0));
+    const coverTimeSeconds = Math.max(this.data.clipStartSeconds || 0, Math.min(this.data.sliderMaxSeconds, Number(seconds) || 0));
     const orientation = this.data.videoInfo.orientation;
     const flow = Object.assign({}, this.data.flow, {
       status: VIDEO_FLOW_STATES.WORKING,
@@ -713,10 +768,18 @@ function createVideoPage(options = {}) { return {
   },
 
   async onGenerateMotionPhoto() {
-    const frame = this.data.coverFrameInfo;
-    if (!this.data.video || !frame || !frame.path || this.data.capturingCover
+    if (!this.data.video || this.data.capturingCover || this.data.rangeDragging || this.data.coverDragging
         || this.data.outputBusy || this.data.picking || this.data.showMotionResult || this.isUnloading) return;
+    this.cancelPreviewSeek();
     this.pausePreview();
+    if (this.data.manualMode && !this.data.photo) return;
+    let frame = this.data.coverFrameInfo;
+    if (!frame || frame.requestedSeconds !== this.data.flow.coverTimeSeconds) {
+      await this.captureCoverAt(this.data.flow.coverTimeSeconds);
+      if (this.isUnloading) return;
+      frame = this.data.coverFrameInfo;
+    }
+    if (!frame || !frame.path || frame.requestedSeconds !== this.data.flow.coverTimeSeconds) return;
     this.setData({
       outputBusy: true, outputError: '', outputStatus: '正在生成并校验动态图…',
       flow: Object.assign({}, this.data.flow, { status: VIDEO_FLOW_STATES.WORKING, error: null }),
@@ -834,11 +897,14 @@ function createVideoPage(options = {}) { return {
   },
 
   onHide() {
+    this.cancelPreviewSeek();
     this.pausePreview();
+    if (!this.isUnloading) this.setData({ rangeDragging: false, coverDragging: false });
   },
 
   onUnload() {
     this.isUnloading = true;
+    this.cancelPreviewSeek();
     this.importRequestId = (this.importRequestId || 0) + 1;
     this.frameRequestId = (this.frameRequestId || 0) + 1;
     if (this.videoContext) {

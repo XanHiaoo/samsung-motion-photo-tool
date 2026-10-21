@@ -199,8 +199,6 @@
 .secondary-button::after, .primary-button::after { border: 0; }
 .trim-button { margin-top: 24rpx; }
 .clip-summary { margin-top: 28rpx; display: flex; justify-content: space-between; gap: 14rpx; font-size: 22rpx; font-weight: 700; }
-.clip-control { display: flex; align-items: center; margin-top: 12rpx; font-size: 22rpx; }
-.clip-control slider { flex: 1; margin-right: 0; }
 .clip-reset { margin-top: 14rpx; color: #2869e8; text-align: right; font-size: 21rpx; }
 .photo-fit-row { margin-top: 24rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; font-size: 22rpx; }
 .result-actions { margin-top: 24rpx; display: flex; gap: 16rpx; }
