@@ -1,7 +1,15 @@
-const encoder = new TextEncoder();
-
 export function utf8(value: string): Uint8Array {
-  return encoder.encode(value);
+  // Mini Program runtimes do not consistently provide TextEncoder.
+  const bytes: number[] = [];
+  for (const character of value) {
+    let point = character.codePointAt(0)!;
+    if (point >= 0xd800 && point <= 0xdfff) point = 0xfffd;
+    if (point < 0x80) bytes.push(point);
+    else if (point < 0x800) bytes.push(0xc0 | (point >> 6), 0x80 | (point & 0x3f));
+    else if (point < 0x10000) bytes.push(0xe0 | (point >> 12), 0x80 | ((point >> 6) & 0x3f), 0x80 | (point & 0x3f));
+    else bytes.push(0xf0 | (point >> 18), 0x80 | ((point >> 12) & 0x3f), 0x80 | ((point >> 6) & 0x3f), 0x80 | (point & 0x3f));
+  }
+  return new Uint8Array(bytes);
 }
 
 export function ascii(bytes: Uint8Array, start: number, length: number): string {

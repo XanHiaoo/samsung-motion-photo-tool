@@ -72,6 +72,7 @@ function chooseVideoFromAlbum() {
       count: 1,
       mediaType: ['video'],
       sourceType: ['album'],
+      sizeType: ['original'],
       success(result) {
         const file = result.tempFiles && result.tempFiles[0];
         if (!file || !file.tempFilePath) {

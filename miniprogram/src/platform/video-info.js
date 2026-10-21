@@ -120,8 +120,8 @@ async function inspectVideoSource(sourcePath, pickerInfo) {
   const header = results[1];
   const majorBrand = getMp4MajorBrand(header);
   const reportedType = String(info.type || '').toLowerCase();
-  if (!majorBrand || majorBrand === 'qt  ' || reportedType === 'mov') {
-    const error = new Error('当前先支持 MP4 视频，MOV 暂不支持。请重新选择 MP4 文件。');
+  if (!majorBrand) {
+    const error = new Error('请选择 MP4 或 MOV 视频。');
     error.code = 'UNSUPPORTED_VIDEO_CONTAINER';
     throw error;
   }
@@ -149,7 +149,7 @@ async function inspectVideoSource(sourcePath, pickerInfo) {
     durationSeconds: duration,
     fps: Number(info.fps) || 0,
     orientation: info.orientation || 'up',
-    containerType: info.type || majorBrand.trim() || 'mp4',
+    containerType: reportedType || (majorBrand === 'qt  ' ? 'mov' : 'mp4'),
   };
 }
 

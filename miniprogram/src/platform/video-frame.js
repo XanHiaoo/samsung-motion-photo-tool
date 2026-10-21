@@ -156,7 +156,8 @@ async function captureVideoFrameToJpeg(sourcePath, seconds, orientation, sourceC
 
   let decoder = null;
   let didStart = false;
-  let stage = 'create-decoder';
+  let stage = 'decoder-create';
+  let frameDetails = {};
   try {
     throwIfCanceled(shouldCancel);
     decoder = wx.createVideoDecoder();
@@ -171,34 +172,48 @@ async function captureVideoFrameToJpeg(sourcePath, seconds, orientation, sourceC
     const startInfo = await startDecoderWithTimeout(decoder, startOptions);
     didStart = true;
     throwIfCanceled(shouldCancel);
-    stage = 'seek';
+    stage = 'decoder-seek';
     await decoder.seek(Math.max(0, Math.round(seconds * 1000)));
     throwIfCanceled(shouldCancel);
-    stage = 'wait-for-frame';
+    stage = 'frame-read';
     const frame = await waitForDecodedFrame(decoder, shouldCancel);
-    stage = 'write-source-canvas';
     throwIfCanceled(shouldCancel);
     const width = Number(frame.width) || 0;
     const height = Number(frame.height) || 0;
+    frameDetails = {
+      frameWidth: width,
+      frameHeight: height,
+      rawPts: Number.isFinite(frame.pkPts) ? frame.pkPts : null,
+      rawDts: Number.isFinite(frame.pkDts) ? frame.pkDts : null,
+    };
     if (!width || !height || width > MAX_FRAME_PIXELS / height) {
       const error = new Error('视频分辨率过高，当前无法安全导出封面。请先将视频缩小后重试。');
       error.code = 'VIDEO_FRAME_TOO_LARGE';
+      error.frameDetails = Object.assign({}, frameDetails, { maxFramePixels: MAX_FRAME_PIXELS });
       throw error;
     }
 
+    stage = 'frame-validation';
     const frameBytes = ArrayBuffer.isView(frame.data)
       ? new Uint8Array(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength)
       : frame.data instanceof ArrayBuffer
         || Object.prototype.toString.call(frame.data) === '[object ArrayBuffer]'
         ? new Uint8Array(frame.data)
         : null;
+    frameDetails = Object.assign({}, frameDetails, {
+      dataType: Object.prototype.toString.call(frame.data),
+      dataByteLength: frameBytes ? frameBytes.byteLength : null,
+      expectedRgbaByteLength: width * height * 4,
+    });
     if (!frameBytes || frameBytes.byteLength !== width * height * 4) {
       const error = new Error('当前视频解码器返回了不支持的像素格式，请换用 H.264 MP4。');
       error.code = 'VIDEO_FRAME_FORMAT_UNSUPPORTED';
+      error.frameDetails = frameDetails;
       throw error;
     }
 
     throwIfCanceled(shouldCancel);
+    stage = 'canvas-render';
     sourceCanvas.width = width;
     sourceCanvas.height = height;
     const sourceContext = sourceCanvas.getContext('2d');
@@ -207,9 +222,8 @@ async function captureVideoFrameToJpeg(sourcePath, seconds, orientation, sourceC
     imageData.data.set(frameBytes);
     sourceContext.putImageData(imageData, 0, 0);
 
-    stage = 'draw-output-canvas';
     const outputSize = drawOrientedFrame(sourceCanvas, outputCanvas, width, height, orientation || 'up');
-    stage = 'export-jpeg';
+    stage = 'jpeg-export';
     const path = await canvasToJpeg(outputCanvas, outputSize.width, outputSize.height);
     return {
       path,
@@ -222,7 +236,10 @@ async function captureVideoFrameToJpeg(sourcePath, seconds, orientation, sourceC
     };
   } catch (error) {
     if (error && typeof error === 'object') {
-      try { error.videoFrameStage = stage; } catch (_ignored) { /* native error may be read-only */ }
+      try {
+        if (!error.frameStage) error.frameStage = stage;
+        if (!error.frameDetails) error.frameDetails = frameDetails;
+      } catch (_ignored) { /* Some native errors are read-only. */ }
     }
     throw error;
   } finally {
@@ -243,4 +260,4 @@ async function captureVideoFrameToJpeg(sourcePath, seconds, orientation, sourceC
   }
 }
 
-module.exports = { captureVideoFrameToJpeg };
+module.exports = { captureVideoFrameToJpeg, drawOrientedFrame, canvasToJpeg };
