@@ -1,4 +1,4 @@
-// Optional end-to-end smoke test: NODE_PATH=<playwright-core modules> node tests/fade-smoke.cjs <video.mp4>
+// Optional end-to-end smoke test: NODE_PATH=<playwright-core modules> node tests/motion-photo-smoke.cjs <video.mp4>
 const { chromium } = require('playwright-core');
 const path = require('path');
 const fs = require('fs');
@@ -27,13 +27,12 @@ const { execFileSync } = require('child_process');
       for (let i = 0; i < 10; i++) await start.press('ArrowRight');
       await end.focus();
       for (let i = 0; i < 10; i++) await end.press('ArrowLeft');
-      if (process.argv.includes('--precise')) await page.getByRole('button', { name: '精确裁剪' }).click();
     }
     await page.evaluate(() => {
-      window.__fadeStages = [];
+      window.__stages = [];
       new MutationObserver(() => {
         const stage = document.querySelector('.progress-copy strong')?.textContent;
-        if (stage && window.__fadeStages.at(-1) !== stage) window.__fadeStages.push(stage);
+        if (stage && window.__stages.at(-1) !== stage) window.__stages.push(stage);
       }).observe(document.body, { subtree: true, childList: true, characterData: true });
     });
     const started = Date.now();
@@ -58,7 +57,7 @@ const { execFileSync } = require('child_process');
     if (process.env.FFMPEG_EXE) {
       execFileSync(process.env.FFMPEG_EXE, ['-v', 'error', '-xerror', '-i', mp4, '-f', 'null', 'NUL']);
     }
-    const stages = await page.evaluate(() => window.__fadeStages);
+    const stages = await page.evaluate(() => window.__stages);
     process.stdout.write(JSON.stringify({ seconds: (Date.now() - started) / 1000, output, mp4, stages }) + '\n');
   } finally {
     await browser.close();

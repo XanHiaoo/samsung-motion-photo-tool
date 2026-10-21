@@ -9,14 +9,13 @@
 - 从 MP4 / MOV 视频截取片段、选择封面，生成 Samsung Motion Photo。
 - 批量导入内嵌视频的 JPG / JPEG / HEIC 动态照片，识别、转换并保存。
 - 选择一张照片和一段视频，合成为一张 Motion Photo。
-- 调整片段起止点、横向移动选区，并使用快速或精确裁剪。
-- 默认在视频结束时渐变回封面，渐变时长初始为 0.5 秒，可按需调整或关闭。
+- 调整片段起止点、横向移动选区并裁剪视频。
 
 ## 界面预览
 
 <div align="center">
   <img src="docs/images/home-preview.png" alt="Motion Photo Tool 首页与三种创建方式" width="220" />
-  <img src="docs/images/video-preview.png" alt="视频模式的时间轴、封面与渐变控制" width="220" />
+  <img src="docs/images/video-preview.png" alt="视频模式的时间轴与封面控制" width="220" />
   <br />
   <img src="docs/images/batch-preview.png" alt="批量导入动态照片及转换队列" width="220" />
   <img src="docs/images/manual-preview.png" alt="照片和视频合成模式的选段控件" width="220" />

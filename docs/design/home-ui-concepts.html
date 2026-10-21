@@ -232,9 +232,9 @@
     const names = { a: '极简工具台', b: '轻相册', c: '系统工具' };
     const dialog = document.querySelector('#demo-dialog');
     const modes = {
-      video: ['视频生成动态图', '选择视频 → 截取片段 → 选择封面 → 生成动态图。支持结束渐变回封面。'],
-      batch: ['批量导入动态图', '选择包含图片和内嵌视频的文件，批量转换为 Samsung Motion Photo。支持设置封面渐变。'],
-      manual: ['照片和视频合成动态图', '选择照片作为封面，截取视频片段后合成动态图。支持图片自适应视频尺寸和结束渐变。']
+      video: ['视频生成动态图', '选择视频 → 截取片段 → 选择封面 → 生成动态图。'],
+      batch: ['批量导入动态图', '选择包含图片和内嵌视频的文件，批量转换为 Samsung Motion Photo。'],
+      manual: ['照片和视频合成动态图', '选择照片作为封面，截取视频片段后合成动态图。支持图片自适应视频尺寸。']
     };
     function setView(view) {
       gallery.classList.toggle('is-single', view !== 'all');

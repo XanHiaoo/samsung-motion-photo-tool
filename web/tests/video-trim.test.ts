@@ -38,24 +38,17 @@ describe('video clip selection', () => {
     expect(snapClipTime(123.026)).toBeCloseTo(123.05);
   });
 
-  it('copies streams by default, avoiding an unnecessary re-encode', () => {
-    const args = trimArguments('input.mp4', 'clip.mp4', 2.5, 5.75, 'fast');
+  it('uses stream copy for every trim', () => {
+    const args = trimArguments('input.mp4', 'clip.mp4', 2.5, 5.75);
     expect(args.slice(0, 6)).toEqual(['-ss', '2.500', '-i', 'input.mp4', '-t', '3.250']);
     expect(args).toContain('copy');
     expect(args).not.toContain('libx264');
-    expect(trimArguments('input.mp4', 'clip.mp4', 0, 5.75, 'fast').slice(0, 2)).toEqual(['-i', 'input.mp4']);
+    expect(trimArguments('input.mp4', 'clip.mp4', 0, 5.75).slice(0, 2)).toEqual(['-i', 'input.mp4']);
+    expect(() => trimArguments('input.mp4', 'clip.mp4', 2, 2.1)).toThrow();
   });
 
-  it('keeps an exact H.264/AAC option for frame-accurate cuts', () => {
-    const args = trimArguments('input.mp4', 'clip.mp4', 2.5, 5.75, 'precise');
-    expect(args).toContain('libx264');
-    expect(args).toContain('aac');
-    expect(args.at(-1)).toBe('clip.mp4');
-    expect(() => trimArguments('input.mp4', 'clip.mp4', 2, 2.1, 'precise')).toThrow();
-  });
-
-  it('accounts for retained pre-roll in fast cuts when placing the cover timestamp', () => {
-    expect(coverOffsetInClip(1.3, 1.3, 3.2, 2.2, 'fast')).toBeCloseTo(0.3);
-    expect(coverOffsetInClip(1.3, 1.3, 3.2, 1.9, 'precise')).toBe(0);
+  it('accounts for retained pre-roll when placing the cover timestamp', () => {
+    expect(coverOffsetInClip(1.3, 1.3, 3.2, 2.2)).toBeCloseTo(0.3);
+    expect(coverOffsetInClip(1.3, 1.3, 3.2, 1.9)).toBe(0);
   });
 });
