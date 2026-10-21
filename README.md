@@ -76,6 +76,8 @@ Release 签名、GitHub Secrets 和 Tag 发布流程见[发布指南](docs/RELEA
 
 ## 文档
 
+微信小程序位于 `miniprogram/`，支持同页选段的视频生成、照片 + 视频和批量动态照片转换。使用微信开发者工具打开仓库根目录，运行与验证说明见 [小程序 README](miniprogram/README.md)。
+
 - [用户使用指南（HTML）](https://xanhiaoo.github.io/samsung-motion-photo-tool/docs/USER_GUIDE.html)
 - [用户使用手册 PDF](docs/motion-photo-tool-user-guide.pdf)
 - [开发指南](docs/DEVELOPMENT.md)
