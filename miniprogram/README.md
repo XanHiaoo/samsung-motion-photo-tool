@@ -10,7 +10,9 @@
 
 ### 视频生成
 
-选择视频后，在同一页拖动起点、终点和封面滑块，点“播放所选片段”检查，再生成和保存。不需要打开微信剪辑器。片段变化后旧结果会失效，封面自动限制在片段内。
+选择视频后，在一条进度条上分别拖动起点、终点两个手柄，再用封面滑块选择时刻，点“播放所选片段”检查，再生成和保存。不需要打开微信剪辑器。片段变化后旧结果会失效，封面自动限制在片段内。
+
+拖动封面时使用原生播放器定位预览，连续请求按 60 ms 合并，松手立即提交最终位置；导入和拖动不再启动解码器、导出 JPEG。点击生成时才提取最终时刻的高清封面，重试生成可复用同一时刻的封面。原生预览的定位精度取决于微信播放器，最终封面仍按所选时刻解码。
 
 快速裁剪保留原编码与音频，输出仅包含片段需要的帧；为保证从非关键帧位置开始播放，可能保留少量前置解码帧，通过 MP4 编辑时间线控制播放范围。XMP 封面时刻使用相对片段起点的时间。MP4 和 MOV 的普通 H.264 / HEVC、AAC 轨道可直接处理；MOV 会重新封装为 MP4。分片 MP4、变速/多段编辑或不支持的轨道会给出错误，不会悄悄改为整段输出。
 
@@ -52,4 +54,4 @@ $env:FFMPEG_EXE = 'C:\path\to\ffmpeg.exe'
 node --test miniprogram/tests/*.test.cjs
 ```
 
-未配置 FFmpeg 时仅跳过真实媒体用例，其余测试仍执行。完整验证记录见 [M4/M5](../docs/miniprogram-baseline/M4-M5-IMPLEMENTATION.md)，当前方案见 [开发方案](../docs/WECHAT_MINIPROGRAM_PLAN.md)。
+未配置 FFmpeg 时仅跳过真实媒体用例，其余测试仍执行。交互优化验证见 [双端滑轨与封面预览](../docs/miniprogram-baseline/INTERACTION-OPTIMIZATION.md)，三种转换的验证记录见 [M4/M5](../docs/miniprogram-baseline/M4-M5-IMPLEMENTATION.md)，当前方案见 [开发方案](../docs/WECHAT_MINIPROGRAM_PLAN.md)。

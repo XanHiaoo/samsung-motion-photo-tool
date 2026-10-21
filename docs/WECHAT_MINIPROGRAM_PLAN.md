@@ -19,6 +19,7 @@
 - `miniprogram/src/media/mp4-trim.js`：解析普通 MP4/MOV 样本表，保留解码前置帧，重建时长、偏移、音视频轨道及播放时间线，无重编码。
 - `miniprogram/src/media/motion-photo.js`：容量限制、三种输入流程、相对封面时间、落盘回读和字节一致性校验。
 - `miniprogram/src/features/video-flow/`：视频与照片模式共享页面逻辑、片段约束和结果操作。
+- `miniprogram/src/components/range-slider/`：单轨双手柄选取起止，支持拖动、轨道点击、最小间隔和手势取消。封面拖动通过原生播放器预览，高清取帧推迟到生成时执行。
 - `miniprogram/src/features/batch-flow/`：逐项转换、失败隔离、暂停与继续。
 - `miniprogram/src/platform/`：选择器、图像方向与 JPEG 归一化、取帧诊断、相册和文件输出。
 
@@ -28,4 +29,4 @@
 
 开发者工具可验证页面加载、图片选择和非硬件相关流程；不能代替微信真机 VideoDecoder 与三星相册播放。新版本需在用户设备复测同页裁剪的播放起止/封面、照片方向/裁切和批量保存结果。遇到具体素材不支持时记录设备/微信/编码信息及错误，不以结构校验代替设备兼容性结论。
 
-输入限制、操作说明见 [小程序 README](../miniprogram/README.md)。历史基线见 [M0](miniprogram-baseline/M0-CURRENT-RUN.md)、[M2](miniprogram-baseline/M2-IMPLEMENTATION.md)、[M3](miniprogram-baseline/M3-IMPLEMENTATION.md)，本轮记录见 [M4/M5](miniprogram-baseline/M4-M5-IMPLEMENTATION.md)。
+输入限制、操作说明见 [小程序 README](../miniprogram/README.md)。历史基线见 [M0](miniprogram-baseline/M0-CURRENT-RUN.md)、[M2](miniprogram-baseline/M2-IMPLEMENTATION.md)、[M3](miniprogram-baseline/M3-IMPLEMENTATION.md)、[M4/M5](miniprogram-baseline/M4-M5-IMPLEMENTATION.md)，本轮记录见 [交互优化](miniprogram-baseline/INTERACTION-OPTIMIZATION.md)。
