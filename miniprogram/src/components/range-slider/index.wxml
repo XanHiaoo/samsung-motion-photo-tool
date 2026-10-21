@@ -1,0 +1,11 @@
+<view class="range-control {{disabled ? 'is-disabled' : ''}}" catchtouchstart="onTouchStart" catchtouchmove="onTouchMove" catchtouchend="onTouchEnd" catchtouchcancel="onTouchCancel">
+  <view class="range-rail" catchtouchstart="onTouchStart">
+    <view class="range-fill" style="left: {{startPercent}}%; width: {{widthPercent}}%;"></view>
+    <view class="range-handle {{activeEdge === 'start' ? 'is-active' : ''}}" style="left: {{startPercent}}%;" data-edge="start" catchtouchstart="onTouchStart" aria-role="slider" aria-label="片段起点" aria-valuenow="{{start}}" aria-valuemin="0" aria-valuemax="{{end}}" aria-disabled="{{disabled}}">
+      <view class="range-grip"></view><text class="range-handle-label">起点</text>
+    </view>
+    <view class="range-handle {{activeEdge === 'end' ? 'is-active' : ''}}" style="left: {{endPercent}}%;" data-edge="end" catchtouchstart="onTouchStart" aria-role="slider" aria-label="片段终点" aria-valuenow="{{end}}" aria-valuemin="{{start}}" aria-valuemax="{{duration}}" aria-disabled="{{disabled}}">
+      <view class="range-grip"></view><text class="range-handle-label">终点</text>
+    </view>
+  </view>
+</view>
