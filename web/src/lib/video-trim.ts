@@ -1,6 +1,5 @@
 export const MIN_CLIP_SECONDS = 0.2;
 export const CLIP_TIME_STEP = 0.05;
-export type TrimMode = 'fast' | 'precise';
 
 export function snapClipTime(seconds: number): number {
   if (!Number.isFinite(seconds)) return 0;
@@ -42,12 +41,12 @@ export function formatClipTime(seconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}.${safe % 10}`;
 }
 
-export function coverOffsetInClip(selectedTime: number, start: number, end: number, actualDuration: number, mode: TrimMode): number {
-  const preroll = mode === 'fast' ? Math.max(0, actualDuration - (end - start)) : 0;
+export function coverOffsetInClip(selectedTime: number, start: number, end: number, actualDuration: number): number {
+  const preroll = Math.max(0, actualDuration - (end - start));
   return Math.max(0, Math.min(selectedTime - start + preroll, Math.max(0, actualDuration - 0.05)));
 }
 
-export function trimArguments(inputName: string, outputName: string, start: number, end: number, mode: TrimMode): string[] {
+export function trimArguments(inputName: string, outputName: string, start: number, end: number): string[] {
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end - start < MIN_CLIP_SECONDS - 0.001) {
     throw new Error('截取范围无效，请至少保留 0.2 秒视频。');
   }
@@ -56,13 +55,5 @@ export function trimArguments(inputName: string, outputName: string, start: numb
     '-i', inputName, '-t', (end - start).toFixed(3),
     '-map', '0:v:0', '-map', '0:a?',
   ];
-  if (mode === 'fast') {
-    return [...common, '-c', 'copy', '-avoid_negative_ts', 'make_zero', '-movflags', '+faststart', outputName];
-  }
-  return [
-    ...common,
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20', '-pix_fmt', 'yuv420p',
-    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', '-threads', '1',
-    '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', outputName,
-  ];
+  return [...common, '-c', 'copy', '-avoid_negative_ts', 'make_zero', '-movflags', '+faststart', outputName];
 }

@@ -1,4 +1,4 @@
-import { trimArguments, type TrimMode } from './video-trim';
+import { trimArguments } from './video-trim';
 import { captureVideoEndFrame } from './video-frame';
 import { tryHardwareFadeTail } from './android-fade';
 import { detectCodec } from '../core/mp4';
@@ -57,17 +57,17 @@ export async function normalizeVideo(file: File, onStage?: (stage: string) => vo
   }
 }
 
-export async function trimVideo(file: File, start: number, end: number, mode: TrimMode, onStage?: (stage: string, progress?: number) => void): Promise<File> {
+export async function trimVideo(file: File, start: number, end: number, onStage?: (stage: string, progress?: number) => void): Promise<File> {
   onStage?.('正在准备裁剪…');
   const ffmpeg = await loadFfmpeg();
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const inputName = `clip-input-${id}.mp4`;
   const outputName = `clip-output-${id}.mp4`;
   try {
-    const args = trimArguments(inputName, outputName, start, end, mode);
+    const args = trimArguments(inputName, outputName, start, end);
     onStage?.('正在读取视频…');
     await ffmpeg.writeFile(inputName, new Uint8Array(await file.arrayBuffer()));
-    const stage = mode === 'fast' ? '正在快速裁剪…' : '正在精确裁剪并编码 H.264…';
+    const stage = '正在裁剪…';
     onStage?.(stage, 0);
     let lastPercent = -2;
     const reportProgress = ({ time }: { time: number }) => {
@@ -93,8 +93,7 @@ export async function trimVideo(file: File, start: number, end: number, mode: Tr
     bytes.set(data);
     return new File([bytes.buffer], `${file.name.replace(/\.[^.]+$/, '')}-clip.mp4`, { type: 'video/mp4', lastModified: file.lastModified });
   } catch (error) {
-    const advice = mode === 'fast' ? '快速裁剪失败，请重试精确裁剪。' : '精确裁剪失败，请缩短片段或使用 H.264 MP4。';
-    throw new Error(`${advice}${error instanceof Error ? `（${error.message}）` : ''}`);
+    throw new Error(`裁剪失败，请检查视频格式并重试。${error instanceof Error ? `（${error.message}）` : ''}`);
   } finally {
     await Promise.allSettled([ffmpeg.deleteFile(inputName), ffmpeg.deleteFile(outputName)]);
   }

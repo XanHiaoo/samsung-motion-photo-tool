@@ -165,7 +165,6 @@
               <li class="step"><div><strong>Web 版：</strong><a href="https://xanhiaoo.github.io/samsung-motion-photo-tool/">打开在线应用</a>。建议使用较新的 Samsung Internet 或 Android Chrome。页面异常时先刷新；仍未恢复再清除站点缓存。</div></li>
               <li class="step"><div><strong>Android 版：</strong>安装并打开 APK。选择文件时会调用 Android 系统文件选择器；成品保存到相册的 <code>Pictures/Motion Photo Tool</code>。</div></li>
             </ul>
-            <p class="tip"><strong>渐变默认值：</strong>结束时渐变回封面默认开启，时长为 0.5 秒。可在对应模式中调整或关闭。</p>
           </div>
           <details class="screenshot"><summary>查看首页界面</summary><figure><img src="images/home-preview.png" alt="Motion Photo Tool 首页，展示三种创建方式" /><figcaption>首页与三种创建方式</figcaption></figure></details>
         </div>
@@ -182,13 +181,12 @@
               <li class="step"><div><strong>选择视频：</strong>在首页点 <strong>视频生成动态图</strong>，选择 MP4 或 MOV。</div></li>
               <li class="step"><div><strong>设置片段：</strong>拖动时间轴两侧手柄调整起止点；按住选区内部可整体左右移动片段。靠近素材边缘拖动时，时间轴会跟随扩展。</div></li>
               <li class="step"><div><strong>选择封面：</strong>拖动 <strong>拖动选择封面</strong> 滑块，在已选片段内定位封面帧。</div></li>
-              <li class="step"><div><strong>预览和渐变：</strong>点 <strong>预览片段</strong> 检查选段。<strong>结束时渐变回封面</strong>默认开启，时长为 0.5 秒；可调整或关闭。</div></li>
-              <li class="step"><div><strong>选择裁剪方式：</strong>快速裁剪直接复制原视频，通常更快但起点可能略有偏差；精确裁剪重新编码 H.264，边界更准但处理更慢。</div></li>
+              <li class="step"><div><strong>预览片段：</strong>点 <strong>预览片段</strong> 检查选段。</div></li>
               <li class="step"><div><strong>生成并保存：</strong>点 <strong>生成 Motion Photo</strong>，完成后点 <strong>保存 Motion Photo</strong>。Android 写入相册，Web 下载文件。</div></li>
             </ol>
-            <p class="tip">不调整选段时默认使用完整视频。封面保存为 JPEG。启用结尾渐变时优先处理视频结尾的短过渡；Android 设备会尝试硬件加速，不兼容时可能回退到软件处理。</p>
+            <p class="tip">不调整选段时默认使用完整视频。封面保存为 JPEG。</p>
           </div>
-          <details class="screenshot"><summary>查看视频模式界面</summary><figure><img src="images/video-preview.png" alt="视频模式的时间轴、封面滑块、渐变与裁剪控制" /><figcaption>选段、封面与渐变控制</figcaption></figure></details>
+          <details class="screenshot"><summary>查看视频模式界面</summary><figure><img src="images/video-preview.png" alt="视频模式的时间轴和封面滑块" /><figcaption>选段与封面控制</figcaption></figure></details>
         </div>
         <footer class="page-footer"><span>视频模式 <span aria-hidden="true">·</span> 从片段到成品</span><span class="print-page-number">02 / 05</span></footer>
       </section>
@@ -209,7 +207,6 @@
               <article class="status-card"><strong>已识别图片和视频</strong><p>点该行的 <strong>转换</strong>，或点页面底部的 <strong>全部转换</strong> 顺序处理。</p></article>
               <article class="status-card"><strong>无法解析或转换失败</strong><p>检查文件内容与格式；失败项会显示原因。普通静态图应改用照片 + 视频模式。</p></article>
             </div>
-            <p class="tip"><strong>批量渐变：</strong>默认启用结束时渐变回封面，时长初始为 0.5 秒。设置会应用于随后转换的文件；处理期间请保持页面打开。</p>
           </div>
           <details class="screenshot"><summary>查看批量模式界面</summary><figure><img src="images/batch-preview.png" alt="批量导入动态照片及转换队列" /><figcaption>批量导入与队列状态</figcaption></figure></details>
         </div>
@@ -227,12 +224,11 @@
               <li class="step"><div><strong>选择视频：</strong>点 <strong>选择视频</strong>，导入 MP4 / MOV。</div></li>
               <li class="step"><div><strong>按需适配尺寸：</strong>启用 <strong>图片自适应视频尺寸</strong>，可按视频宽高调整照片。</div></li>
               <li class="step"><div><strong>设置视频片段：</strong>在时间轴调整起止位置；拖动选区中间可整体横移，并点 <strong>预览片段</strong> 检查效果。</div></li>
-              <li class="step"><div><strong>调整渐变和裁剪：</strong>结束时渐变回封面默认开启，时长为 0.5 秒。按需调整、关闭，或选择快速 / 精确裁剪。</div></li>
               <li class="step"><div><strong>生成并保存：</strong>点 <strong>生成 Motion Photo</strong>，完成后保存结果。</div></li>
             </ol>
             <p class="tip">未裁剪时使用完整视频。此模式没有单独的视频封面滑块，因为所选照片始终作为封面。</p>
           </div>
-          <details class="screenshot"><summary>查看照片 + 视频界面</summary><figure><img src="images/manual-preview.png" alt="照片与视频合成模式的选段、渐变和裁剪控制" /><figcaption>照片封面与视频片段控制</figcaption></figure></details>
+          <details class="screenshot"><summary>查看照片 + 视频界面</summary><figure><img src="images/manual-preview.png" alt="照片与视频合成模式的选段控制" /><figcaption>照片封面与视频片段控制</figcaption></figure></details>
         </div>
         <footer class="page-footer"><span>照片 + 视频 <span aria-hidden="true">·</span> 手动指定封面</span><span class="print-page-number">04 / 05</span></footer>
       </section>
@@ -250,7 +246,6 @@
         <dl class="faq-list">
           <div class="faq-item"><dt>批量文件无法识别</dt><dd>确认原文件同时包含图片和内嵌 MP4 / MOV。普通静态照片请改用照片 + 视频模式。</dd></div>
           <div class="faq-item"><dt>照片或视频无法预览</dt><dd>优先尝试 JPEG 和 H.264 MP4。MOV 需要先转换，可能花费更长时间。</dd></div>
-          <div class="faq-item"><dt>快速裁剪边界不准</dt><dd>改用精确裁剪。重新编码会更慢，长视频请耐心等待。</dd></div>
           <div class="faq-item"><dt>处理似乎停住</dt><dd>保持应用或标签页打开。大文件或 MOV 处理时间较长。</dd></div>
           <div class="faq-item"><dt>相册中找不到结果</dt><dd>检查 <code>Pictures/Motion Photo Tool</code>，或在文件管理器搜索最近生成的 <code>_MP.jpg</code>。</dd></div>
           <div class="faq-item"><dt>生成后不能播放</dt><dd>不同机型和图库对编码的支持不同。改用 H.264 MP4、缩短片段后重新生成。</dd></div>

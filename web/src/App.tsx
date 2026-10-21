@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -20,9 +20,9 @@ import { formatBytes, locateEmbeddedMotionParts, outputName, type MediaAnalysis 
 import { convertEmbeddedMotionFile } from './lib/embedded-convert';
 import { normalizeImage, resizeImageToSize } from './lib/image-normalize';
 import { captureVideoFrame, createTimelineThumbnails } from './lib/video-frame';
-import { addCoverFade, MAX_COVER_FADE_SECONDS, MIN_COVER_FADE_SECONDS, normalizeVideo, trimVideo } from './lib/video-remux';
+import { normalizeVideo, trimVideo } from './lib/video-remux';
 import { readVideoDimensions } from './lib/video-metadata';
-import { clampClipEnd, clampClipStart, clampCoverTime, CLIP_TIME_STEP, coverOffsetInClip, formatClipTime, isClipTrimmed, MIN_CLIP_SECONDS, snapClipTime, type TrimMode } from './lib/video-trim';
+import { clampClipEnd, clampClipStart, clampCoverTime, CLIP_TIME_STEP, coverOffsetInClip, formatClipTime, isClipTrimmed, MIN_CLIP_SECONDS, snapClipTime } from './lib/video-trim';
 import { analyzeFile, muxFiles } from './lib/worker-client';
 
 type View = 'home' | 'embedded' | 'manual' | 'video';
@@ -44,8 +44,6 @@ const IMAGE_ACCEPT = '.jpg,.jpeg,.heic,.heif,.png,image/jpeg,image/heic,image/he
 // The parser still validates the actual embedded MP4/MOV structure after selection.
 const MOTION_ACCEPT = 'image/*,.jpg,.jpeg,.heic,.heif';
 const VIDEO_ACCEPT = '.mp4,.mov,video/mp4,video/quicktime';
-const DEFAULT_UI_COVER_FADE_SECONDS = 0.5;
-
 function download(url: string, name: string) {
   if (window.AndroidBridge) {
     void saveInAndroid(url, name).catch((error) => {
@@ -118,37 +116,11 @@ function PrivacyNote() {
   return <div className="privacy-note"><SchemeAIcon name="lock" /><span>仅在本机处理，不会上传</span></div>;
 }
 
-function CoverFadeOptions({ enabled, seconds, disabled, onEnabledChange, onSecondsChange }: {
-  enabled: boolean;
-  seconds: number;
-  disabled: boolean;
-  onEnabledChange: (enabled: boolean) => void;
-  onSecondsChange: (seconds: number) => void;
-}) {
-  return (
-    <div className="cover-fade-options">
-      <label className="preview-option">
-        <input type="checkbox" checked={enabled} disabled={disabled} onChange={(event) => onEnabledChange(event.currentTarget.checked)} />
-        <span><strong>结束时渐变回封面</strong><small>优先仅编码结尾过渡，安卓设备会尝试硬件加速</small></span>
-      </label>
-      {enabled ? (
-        <label className="preview-duration-option">
-          <span className="preview-duration-heading"><strong>渐变时长</strong><output>{seconds.toFixed(1)} 秒</output></span>
-          <input type="range" min={MIN_COVER_FADE_SECONDS} max={MAX_COVER_FADE_SECONDS} step="0.1" value={seconds} disabled={disabled} onChange={(event) => onSecondsChange(Number(event.currentTarget.value))} />
-          <small>时长越长越明显；视频过短时会自动缩短。</small>
-        </label>
-      ) : null}
-    </div>
-  );
-}
-
 function MotionFileMode({ onBack }: { onBack: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const tasksRef = useRef<MotionTask[]>([]);
   const [tasks, setTasks] = useState<MotionTask[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [fadeToCover, setFadeToCover] = useState(true);
-  const [coverFadeSeconds, setCoverFadeSeconds] = useState(DEFAULT_UI_COVER_FADE_SECONDS);
 
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
   useEffect(() => () => {
@@ -202,7 +174,7 @@ function MotionFileMode({ onBack }: { onBack: () => void }) {
     if (!task.analysis || task.analysis.format === 'Samsung Motion Photo') return;
     updateTask(task.id, { status: 'working', stage: '正在准备…', error: null });
     try {
-      const output = await convertEmbeddedMotionFile(task.file, task.analysis, (stage) => updateTask(task.id, { stage }), { fadeToCover, coverFadeSeconds });
+      const output = await convertEmbeddedMotionFile(task.file, task.analysis, (stage) => updateTask(task.id, { stage }));
       const url = URL.createObjectURL(output.blob);
       updateTask(task.id, { output: { url, blob: output.blob, name: output.name }, status: 'success', stage: '转换完成' });
     } catch (caught) {
@@ -259,8 +231,6 @@ function MotionFileMode({ onBack }: { onBack: () => void }) {
       </button>
       <input ref={inputRef} className="visually-hidden" type="file" multiple accept={MOTION_ACCEPT} onChange={(event) => { addFiles([...(event.currentTarget.files ?? [])]); event.currentTarget.value = ''; }} />
       <div className="format-hint"><ScanSearch size={17} /><span>文件需同时包含图片和 MP4 / MOV 视频。</span></div>
-      <CoverFadeOptions enabled={fadeToCover} seconds={coverFadeSeconds} disabled={busy} onEnabledChange={setFadeToCover} onSecondsChange={setCoverFadeSeconds} />
-
       {tasks.length ? (
         <section className="task-section">
           <div className="task-title-row">
@@ -318,7 +288,6 @@ function ManualMode({ onBack }: { onBack: () => void }) {
   const [duration, setDuration] = useState(0);
   const [clipStart, setClipStart] = useState(0);
   const [clipEnd, setClipEnd] = useState(0);
-  const [trimMode, setTrimMode] = useState<TrimMode>('fast');
   const [timelineFrames, setTimelineFrames] = useState<string[]>([]);
   const [timelineViewport, setTimelineViewport] = useState<TimelineViewport>({ start: 0, end: 0 });
   const [frameReady, setFrameReady] = useState(false);
@@ -326,12 +295,10 @@ function ManualMode({ onBack }: { onBack: () => void }) {
   const [showFirstFramePreview, setShowFirstFramePreview] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [fitImageToVideo, setFitImageToVideo] = useState(false);
-  const [fadeToCover, setFadeToCover] = useState(true);
-  const [coverFadeSeconds, setCoverFadeSeconds] = useState(DEFAULT_UI_COVER_FADE_SECONDS);
   const [status, setStatus] = useState<Status>('idle');
   const [stage, setStage] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ url: string; blob: Blob; name: string; note: string | null } | null>(null);
+  const [result, setResult] = useState<{ url: string; blob: Blob; name: string } | null>(null);
   const videoUrl = useMemo(() => playableVideo ? URL.createObjectURL(playableVideo) : null, [playableVideo]);
 
   useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl); }, [videoUrl]);
@@ -387,30 +354,20 @@ function ManualMode({ onBack }: { onBack: () => void }) {
     try {
       const normalizedImage = await normalizeImage(image, setStage);
       const trimmed = isClipTrimmed(clipStart, clipEnd, duration);
-      const outputVideo = trimmed ? await trimVideo(playableVideo, clipStart, clipEnd, trimMode, setStage) : playableVideo;
+      const outputVideo = trimmed ? await trimVideo(playableVideo, clipStart, clipEnd, setStage) : playableVideo;
       const actualDuration = trimmed ? (await analyzeFile(outputVideo)).durationSeconds ?? clipEnd - clipStart : duration;
-      if (trimmed && actualDuration < MIN_CLIP_SECONDS) throw new Error('裁剪结果过短，请扩大片段范围或尝试精确裁剪。');
+      if (trimmed && actualDuration < MIN_CLIP_SECONDS) throw new Error('裁剪结果过短，请扩大截取范围后重试。');
       let imageForOutput = normalizedImage;
       const dimensions = await readVideoDimensions(outputVideo);
       if (fitImageToVideo) {
         imageForOutput = await resizeImageToSize(normalizedImage, dimensions.width, dimensions.height, setStage);
       }
-      const outputVideoAnalysis = trimmed ? await analyzeFile(outputVideo) : null;
-      const outputVideoWithFade = fadeToCover
-        ? await addCoverFade(outputVideo, imageForOutput, actualDuration, dimensions.width, dimensions.height, coverFadeSeconds, setStage)
-        : outputVideo;
       setStage('正在生成 Motion Photo…');
       const timestampUs = Math.round(actualDuration * 500_000);
       const name = outputName(image.name);
-      const output = await muxFiles(imageForOutput, outputVideoWithFade, name, timestampUs);
+      const output = await muxFiles(imageForOutput, outputVideo, name, timestampUs);
       if (!output.analysis.validation.isSamsungCompatible) throw new Error('生成结果未通过结构校验。');
-      const extra = trimmed && trimMode === 'fast' && outputVideoAnalysis?.durationSeconds
-        ? Math.max(0, outputVideoAnalysis.durationSeconds - (clipEnd - clipStart))
-        : 0;
-      const notes: string[] = [];
-      if (fadeToCover) notes.push(`已在视频结尾追加 ${formatClipTime(coverFadeSeconds)} 的封面渐变尾段。`);
-      if (extra >= 0.15) notes.push(`快速裁剪可能多保留了约 ${formatClipTime(extra)} 的开头画面；如需严格起点，请选择精确裁剪。`);
-      setResult({ url: URL.createObjectURL(output.blob), blob: output.blob, name, note: notes.length ? notes.join(' ') : null });
+      setResult({ url: URL.createObjectURL(output.blob), blob: output.blob, name });
       setStatus('success');
       setStage('转换成功');
     } catch (caught) {
@@ -476,12 +433,6 @@ function ManualMode({ onBack }: { onBack: () => void }) {
     const next = clampClipEnd(snapClipTime(seconds), clipStart, duration);
     setClipEnd(next);
     seekVideo(Math.min(videoRef.current?.currentTime ?? next, next));
-  };
-
-  const selectTrimMode = (mode: TrimMode) => {
-    setTrimMode(mode);
-    setResult(null);
-    setError(null);
   };
 
   const previewClip = async () => {
@@ -550,14 +501,8 @@ function ManualMode({ onBack }: { onBack: () => void }) {
             <>
               <ClipRangeSelector duration={duration} start={clipStart} end={clipEnd} coverTime={null} frames={timelineFrames} disabled={status === 'working' || status === 'analyzing'} viewport={timelineViewport} onViewportChange={setTimelineViewport} onStartChange={selectClipStart} onEndChange={selectClipEnd} />
               <div className="clip-preview-controls">
-                <CoverFadeOptions enabled={fadeToCover} seconds={coverFadeSeconds} disabled={!frameReady || status === 'working' || status === 'analyzing'} onEnabledChange={setFadeToCover} onSecondsChange={setCoverFadeSeconds} />
                 <button className="clip-preview-button" type="button" disabled={!frameReady || status === 'working' || status === 'analyzing'} onClick={() => void previewClip()}>{isPreviewing ? '暂停预览' : '预览片段'}</button>
               </div>
-              <div className="trim-method" role="group" aria-label="裁剪方式">
-                <button type="button" className={trimMode === 'fast' ? 'is-selected' : ''} aria-pressed={trimMode === 'fast'} disabled={status === 'working'} onClick={() => selectTrimMode('fast')}>快速裁剪</button>
-                <button type="button" className={trimMode === 'precise' ? 'is-selected' : ''} aria-pressed={trimMode === 'precise'} disabled={status === 'working'} onClick={() => selectTrimMode('precise')}>精确裁剪</button>
-              </div>
-              <p className="trim-method-note">{trimMode === 'fast' ? '快速：速度快；起点可能略有偏差。' : '精确：重新编码 H.264，边界更准但更慢。'}</p>
             </>
           ) : null}
           <p>照片作为封面；未裁剪时使用完整视频。</p>
@@ -565,7 +510,7 @@ function ManualMode({ onBack }: { onBack: () => void }) {
       ) : null}
       {status === 'analyzing' || status === 'working' ? <div className="progress-card"><LoaderCircle className="spin" /><div><strong>{stage}</strong><span>请保持页面打开</span></div></div> : null}
       {status === 'error' ? <div className="error-card"><CircleAlert /><div><strong>{stage}</strong><span>{error}</span></div></div> : null}
-      {result ? <section className="result-card"><div className="success-mark"><Check size={23} /></div><div className="result-copy"><span>转换完成</span><strong>{result.name}</strong><small>{formatBytes(result.blob.size)}</small></div><img src={result.url} alt="结果图片缩略图" />{result.note ? <small className="result-note">{result.note}</small> : null}<button className="primary-button" type="button" onClick={() => download(result.url, result.name)}><Download />保存 Motion Photo</button></section> : null}
+      {result ? <section className="result-card"><div className="success-mark"><Check size={23} /></div><div className="result-copy"><span>转换完成</span><strong>{result.name}</strong><small>{formatBytes(result.blob.size)}</small></div><img src={result.url} alt="结果图片缩略图" /><button className="primary-button" type="button" onClick={() => download(result.url, result.name)}><Download />保存 Motion Photo</button></section> : null}
       {!result ? <div className="bottom-action"><button className="primary-button" type="button" disabled={!image || !playableVideo || !frameReady || !duration || status === 'working' || status === 'analyzing'} onClick={() => void generate()}>{status === 'working' ? <LoaderCircle className="spin" /> : <Plus />}{status === 'working' ? '正在生成…' : '生成 Motion Photo'}</button></div> : null}
     </main>
   );
@@ -793,7 +738,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
   const [duration, setDuration] = useState(0);
   const [clipStart, setClipStart] = useState(0);
   const [clipEnd, setClipEnd] = useState(0);
-  const [trimMode, setTrimMode] = useState<TrimMode>('fast');
   const [selectedTime, setSelectedTime] = useState(0);
   const [timelineFrames, setTimelineFrames] = useState<string[]>([]);
   const [timelineViewport, setTimelineViewport] = useState<TimelineViewport>({ start: 0, end: 0 });
@@ -801,22 +745,16 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
   const [firstFramePreviewUrl, setFirstFramePreviewUrl] = useState<string | null>(null);
   const [showFirstFramePreview, setShowFirstFramePreview] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [fadeToCover, setFadeToCover] = useState(true);
-  const [coverFadeSeconds, setCoverFadeSeconds] = useState(DEFAULT_UI_COVER_FADE_SECONDS);
-  const [showCoverTransition, setShowCoverTransition] = useState(false);
-  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
-  const coverTransitionTimerRef = useRef<number | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [stage, setStage] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ url: string; blob: Blob; name: string; note: string | null } | null>(null);
+  const [result, setResult] = useState<{ url: string; blob: Blob; name: string } | null>(null);
   const videoUrl = useMemo(() => playableVideo ? URL.createObjectURL(playableVideo) : null, [playableVideo]);
 
   useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl); }, [videoUrl]);
   useEffect(() => () => { if (result) URL.revokeObjectURL(result.url); }, [result]);
-  useEffect(() => () => { if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl); }, [coverPreviewUrl]);
   useEffect(() => () => { if (firstFramePreviewUrl) URL.revokeObjectURL(firstFramePreviewUrl); }, [firstFramePreviewUrl]);
   useEffect(() => {
     if (!videoUrl || !frameReady || !videoRef.current) {
@@ -843,12 +781,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
       if (generatedUrl) URL.revokeObjectURL(generatedUrl);
     };
   }, [videoUrl, frameReady]);
-  useEffect(() => () => {
-    if (coverTransitionTimerRef.current !== null) {
-      window.clearTimeout(coverTransitionTimerRef.current);
-      coverTransitionTimerRef.current = null;
-    }
-  }, []);
   useEffect(() => {
     if (!videoUrl || duration <= 0) {
       setTimelineViewport({ start: 0, end: 0 });
@@ -867,31 +799,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
     return () => controller.abort();
   }, [videoUrl, duration, timelineViewport.start, timelineViewport.end]);
   useEffect(() => {
-    if (!fadeToCover || !videoUrl || !frameReady) {
-      setCoverPreviewUrl(null);
-      setShowCoverTransition(false);
-      return;
-    }
-    if (isPreviewing || !videoRef.current) return;
-
-    const element = videoRef.current;
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void captureVideoFrame(element, source?.name ?? 'cover.mp4', selectedTime)
-        .then((image) => {
-          if (!cancelled) setCoverPreviewUrl(URL.createObjectURL(image));
-        })
-        .catch(() => {
-          if (!cancelled) setCoverPreviewUrl(null);
-        });
-    }, 120);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [fadeToCover, videoUrl, frameReady, selectedTime, source?.name, isPreviewing]);
-  useEffect(() => {
     if (status !== 'working') return;
     const startedAt = Date.now();
     setElapsedSeconds(0);
@@ -900,10 +807,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
   }, [status]);
 
   const chooseVideo = async (file: File) => {
-    if (coverTransitionTimerRef.current !== null) {
-      window.clearTimeout(coverTransitionTimerRef.current);
-      coverTransitionTimerRef.current = null;
-    }
     setSource(file);
     setPlayableVideo(null);
     setDuration(0);
@@ -915,8 +818,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
     setFirstFramePreviewUrl(null);
     setShowFirstFramePreview(false);
     setIsPreviewing(false);
-    setShowCoverTransition(false);
-    setCoverPreviewUrl(null);
     setStatus('idle');
     setStage('');
     setProgress(null);
@@ -940,10 +841,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
   };
 
   const seekFrame = (time: number) => {
-    if (coverTransitionTimerRef.current !== null) {
-      window.clearTimeout(coverTransitionTimerRef.current);
-      coverTransitionTimerRef.current = null;
-    }
     setSelectedTime(time);
     const element = videoRef.current;
     if (element) {
@@ -952,15 +849,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
     }
     setShowFirstFramePreview(false);
     setIsPreviewing(false);
-    setShowCoverTransition(false);
-    setResult(null);
-    setError(null);
-    setProgress(null);
-    setStatus('idle');
-  };
-
-  const selectTrimMode = (mode: TrimMode) => {
-    setTrimMode(mode);
     setResult(null);
     setError(null);
     setProgress(null);
@@ -988,15 +876,9 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
     if (!element || !frameReady) return;
     if (isPreviewing) {
       element.pause();
-      setShowCoverTransition(false);
       return;
     }
     try {
-      if (coverTransitionTimerRef.current !== null) {
-        window.clearTimeout(coverTransitionTimerRef.current);
-        coverTransitionTimerRef.current = null;
-      }
-      setShowCoverTransition(false);
       setShowFirstFramePreview(false);
       element.currentTime = clipStart;
       await element.play();
@@ -1009,20 +891,7 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
   const returnToCover = (element: HTMLVideoElement) => {
     setIsPreviewing(false);
     element.pause();
-    if (coverTransitionTimerRef.current !== null) {
-      window.clearTimeout(coverTransitionTimerRef.current);
-      coverTransitionTimerRef.current = null;
-    }
-    if (fadeToCover && coverPreviewUrl) {
-      setShowCoverTransition(true);
-      coverTransitionTimerRef.current = window.setTimeout(() => {
-        element.currentTime = selectedTime;
-        coverTransitionTimerRef.current = null;
-      }, coverFadeSeconds * 1000 + 40);
-    } else {
-      element.currentTime = selectedTime;
-      setShowCoverTransition(false);
-    }
+    element.currentTime = selectedTime;
   };
 
   const generate = async () => {
@@ -1035,30 +904,18 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
       setStage('正在提取选定画面作为封面…');
       const image = await captureVideoFrame(element, source.name, selectedTime);
       const trimmed = isClipTrimmed(clipStart, clipEnd, duration);
-      const outputVideo = trimmed ? await trimVideo(playableVideo, clipStart, clipEnd, trimMode, (message, value) => {
+      const outputVideo = trimmed ? await trimVideo(playableVideo, clipStart, clipEnd, (message, value) => {
         setStage(message);
         setProgress(value ?? null);
       }) : playableVideo;
       const actualDuration = trimmed ? (await analyzeFile(outputVideo)).durationSeconds ?? clipEnd - clipStart : duration;
-      if (trimmed && actualDuration < MIN_CLIP_SECONDS) throw new Error('裁剪结果过短，请扩大片段范围或尝试精确裁剪。');
-      const dimensions = await readVideoDimensions(outputVideo);
-      const outputVideoWithFade = fadeToCover
-        ? await addCoverFade(outputVideo, image, actualDuration, dimensions.width, dimensions.height, coverFadeSeconds, (message, value) => {
-          setStage(message);
-          setProgress(value ?? null);
-        })
-        : outputVideo;
-      const coverOffset = trimmed ? coverOffsetInClip(selectedTime, clipStart, clipEnd, actualDuration, trimMode) : selectedTime;
+      if (trimmed && actualDuration < MIN_CLIP_SECONDS) throw new Error('裁剪结果过短，请扩大截取范围后重试。');
+      const coverOffset = trimmed ? coverOffsetInClip(selectedTime, clipStart, clipEnd, actualDuration) : selectedTime;
       setStage('正在写入 Samsung Motion Photo…');
       const name = outputName(source.name);
-      const output = await muxFiles(image, outputVideoWithFade, name, Math.round(coverOffset * 1_000_000));
+      const output = await muxFiles(image, outputVideo, name, Math.round(coverOffset * 1_000_000));
       if (!output.analysis.validation.isSamsungCompatible) throw new Error('生成结果未通过 Samsung Motion Photo 结构校验。');
-      const extra = trimmed && trimMode === 'fast' ? Math.max(0, actualDuration - (clipEnd - clipStart)) : 0;
-      const notes: string[] = [];
-      if (fadeToCover) notes.push(`已在视频结尾追加 ${formatClipTime(coverFadeSeconds)} 的封面渐变尾段。`);
-      if (extra >= 0.15) notes.push(`快速裁剪可能多保留了约 ${formatClipTime(extra)} 的开头画面；如需严格起点，请选择精确裁剪。`);
-      const note = notes.length > 0 ? notes.join(' ') : null;
-      setResult({ url: URL.createObjectURL(output.blob), blob: output.blob, name, note });
+      setResult({ url: URL.createObjectURL(output.blob), blob: output.blob, name });
       setStatus('success');
       setStage('转换成功');
     } catch (caught) {
@@ -1083,7 +940,7 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
       {videoUrl ? (
         <section className="frame-card">
           <div className="frame-heading"><strong>选择视频片段</strong><span>{formatClipTime(clipEnd - clipStart)}</span></div>
-          <div className={`frame-preview-stage ${showCoverTransition ? 'is-showing-cover' : ''}`} style={{ '--cover-fade-duration': `${coverFadeSeconds}s` } as CSSProperties}>
+          <div className="frame-preview-stage">
             <video
               key={videoUrl}
               ref={videoRef}
@@ -1107,7 +964,6 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
               onError={() => { setFrameReady(false); setError('浏览器无法预览该视频，请使用 H.264 MP4。'); }}
             />
             {firstFramePreviewUrl ? <img className={`frame-initial-preview ${showFirstFramePreview ? 'is-visible' : ''}`} src={firstFramePreviewUrl} alt="视频第一帧预览" aria-hidden="true" /> : null}
-            {coverPreviewUrl ? <img className="frame-cover-preview" src={coverPreviewUrl} alt="选定的封面预览" aria-hidden="true" /> : null}
           </div>
           {duration > 0 ? (
             <>
@@ -1115,14 +971,8 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
               <label className="frame-slider-label" htmlFor="cover-time">拖动选择封面</label>
               <input id="cover-time" className="frame-slider" type="range" min={clipStart} max={clampCoverTime(clipEnd, clipStart, clipEnd)} step={CLIP_TIME_STEP} value={selectedTime} disabled={status === 'working'} onChange={(event) => selectFrame(Number(event.currentTarget.value))} />
               <div className="clip-preview-controls">
-                <CoverFadeOptions enabled={fadeToCover} seconds={coverFadeSeconds} disabled={!frameReady || status === 'working'} onEnabledChange={(enabled) => { setFadeToCover(enabled); setShowCoverTransition(false); }} onSecondsChange={setCoverFadeSeconds} />
                 <button className="clip-preview-button" type="button" disabled={!frameReady || status === 'working'} onClick={() => void previewClip()}>{isPreviewing ? '暂停预览' : '预览片段'}</button>
               </div>
-              <div className="trim-method" role="group" aria-label="裁剪方式">
-                <button type="button" className={trimMode === 'fast' ? 'is-selected' : ''} aria-pressed={trimMode === 'fast'} disabled={status === 'working'} onClick={() => selectTrimMode('fast')}>快速裁剪</button>
-                <button type="button" className={trimMode === 'precise' ? 'is-selected' : ''} aria-pressed={trimMode === 'precise'} disabled={status === 'working'} onClick={() => selectTrimMode('precise')}>精确裁剪</button>
-              </div>
-              <p className="trim-method-note">{trimMode === 'fast' ? '快速：复制原视频，速度快；起点可能略有偏差。' : '精确：重新编码 H.264，边界更准但更慢。'}</p>
             </>
           ) : null}
           <p>封面保存为 JPEG；未裁剪时使用完整视频。</p>
@@ -1131,7 +981,7 @@ function VideoOnlyMode({ onBack }: { onBack: () => void }) {
 
       {(status === 'analyzing' || status === 'working') ? <div className="progress-card"><LoaderCircle className="spin" /><div className="progress-copy"><strong>{stage}</strong><span>{status === 'working' ? `已用时 ${elapsedSeconds} 秒${progress === null ? '' : ` · 进度约 ${Math.round(progress * 100)}%`}` : '正在准备视频'} · 请勿关闭页面</span>{progress !== null ? <progress className="processing-meter" max={1} value={progress} aria-label="视频处理进度" /> : null}</div></div> : null}
       {error ? <div className="error-card"><CircleAlert /><div><strong>{stage || '无法处理视频'}</strong><span>{error}</span></div></div> : null}
-      {result ? <section className="result-card"><div className="success-mark"><Check size={23} /></div><div className="result-copy"><span>生成成功</span><strong>{result.name}</strong><small>{formatBytes(result.blob.size)}</small></div><Film size={35} />{result.note ? <small className="result-note">{result.note}</small> : null}<button className="primary-button" type="button" onClick={() => download(result.url, result.name)}><Download />保存 Motion Photo</button></section> : null}
+      {result ? <section className="result-card"><div className="success-mark"><Check size={23} /></div><div className="result-copy"><span>生成成功</span><strong>{result.name}</strong><small>{formatBytes(result.blob.size)}</small></div><Film size={35} /><button className="primary-button" type="button" onClick={() => download(result.url, result.name)}><Download />保存 Motion Photo</button></section> : null}
       {!result ? <div className="bottom-action"><button className="primary-button" type="button" disabled={!playableVideo || !frameReady || !duration || status === 'working' || status === 'analyzing'} onClick={() => void generate()}>{status === 'working' ? <LoaderCircle className="spin" /> : <Images />}{status === 'working' ? '正在生成…' : '生成 Motion Photo'}</button></div> : null}
     </main>
   );
