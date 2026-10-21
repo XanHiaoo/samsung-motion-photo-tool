@@ -180,6 +180,7 @@
 .error-mark { width: 30rpx; height: 30rpx; flex: 0 0 auto; border: 2rpx solid #c66565; border-radius: 50%; color: #a94343; font-size: 20rpx; font-weight: 750; line-height: 26rpx; text-align: center; }
 .error-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 9rpx; }
 .error-retry { color: #a94343; font-size: 19rpx; font-weight: 750; text-decoration: underline; }
+.error-diagnostic { color: #2869e8; font-size: 19rpx; font-weight: 700; text-decoration: underline; }
 .import-error-card { margin-top: 22rpx; }
 
 @keyframes progress-spin { to { transform: rotate(360deg); } }
@@ -192,8 +193,19 @@
 .jpeg-result-detail { color: #778395; font-size: 19rpx; }
 .jpeg-result-format { padding: 7rpx 13rpx; border-radius: 999rpx; color: #2869e8; background: #edf4ff; font-size: 18rpx; font-weight: 750; }
 .jpeg-result-image { width: 100%; height: 330rpx; margin-top: 24rpx; border-radius: 25rpx; display: block; background: #09101b; }
-.jpeg-result-preview { margin-top: 18rpx; color: #2869e8; font-size: 20rpx; font-weight: 700; text-align: center; }
-.jpeg-result-preview-hover { opacity: 0.7; }
+.editor-hint { display: block; margin-top: 16rpx; color: #778395; font-size: 20rpx; line-height: 1.6; }
+.output-status { margin-top: 24rpx; padding: 24rpx; border-radius: 24rpx; color: #1e5cb9; background: #edf4ff; font-size: 22rpx; line-height: 1.6; }
+.secondary-button { margin: 0; padding: 20rpx; border: 1rpx solid #cbd9eb; border-radius: 20rpx; color: #2869e8; background: #f7faff; font-size: 22rpx; line-height: 1.5; }
+.secondary-button::after, .primary-button::after { border: 0; }
+.trim-button { margin-top: 24rpx; }
+.clip-summary { margin-top: 28rpx; display: flex; justify-content: space-between; gap: 14rpx; font-size: 22rpx; font-weight: 700; }
+.clip-control { display: flex; align-items: center; margin-top: 12rpx; font-size: 22rpx; }
+.clip-control slider { flex: 1; margin-right: 0; }
+.clip-reset { margin-top: 14rpx; color: #2869e8; text-align: right; font-size: 21rpx; }
+.photo-fit-row { margin-top: 24rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; font-size: 22rpx; }
+.result-actions { margin-top: 24rpx; display: flex; gap: 16rpx; }
+.result-actions .secondary-button { flex: 1; }
+.result-file-name { display: block; margin-top: 20rpx; overflow-wrap: break-word; color: #6b7688; font-size: 19rpx; }
 
 .export-canvas { width: 1px; height: 1px; position: fixed; z-index: -1; left: -10000px; top: -10000px; opacity: 0; pointer-events: none; }
 
@@ -230,3 +242,4 @@
 
 .primary-button-hover { background: #1e5dcc; }
 .primary-button.is-disabled { opacity: 0.5; }
+.primary-button[disabled] { color: #fff; background: #2869e8; opacity: 0.5; }

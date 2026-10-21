@@ -1,0 +1,13 @@
+@import "../video/index.wxss";
+.batch-imports { display: flex; flex-direction: column; gap: 16rpx; margin-top: 30rpx; }
+.batch-progress { margin-top: 32rpx; font-size: 23rpx; color: #2869e8; }
+.batch-progress progress { margin-top: 16rpx; }
+.batch-item { padding: 25rpx; }
+.batch-item-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18rpx; }
+.batch-name { flex: 1; min-width: 0; overflow-wrap: break-word; font-size: 24rpx; font-weight: 700; }
+.batch-state { flex-shrink: 0; font-size: 21rpx; color: #778395; }
+.batch-state.success { color: #368567; }
+.batch-state.error { color: #a94343; }
+.batch-state.working { color: #2869e8; }
+.batch-item .result-actions { flex-wrap: wrap; }
+.batch-item .secondary-button { min-width: 130rpx; padding: 16rpx 12rpx; }

@@ -1,7 +1,9 @@
 {
   "pages": [
     "src/pages/home/index",
-    "src/pages/video/index"
+    "src/pages/video/index",
+    "src/pages/manual/index",
+    "src/pages/embedded/index"
   ],
   "window": {
     "navigationStyle": "custom",

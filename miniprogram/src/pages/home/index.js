@@ -15,12 +15,7 @@ Page({
   openVideo() {
     wx.navigateTo({ url: '/src/pages/video/index' });
   },
+  openBatch() { wx.navigateTo({ url: '/src/pages/embedded/index' }); },
+  openManual() { wx.navigateTo({ url: '/src/pages/manual/index' }); },
 
-  openBatch() {
-    // The batch flow is outside milestones M0/M1.
-  },
-
-  openManual() {
-    // The photo + video flow is outside milestones M0/M1.
-  },
 });

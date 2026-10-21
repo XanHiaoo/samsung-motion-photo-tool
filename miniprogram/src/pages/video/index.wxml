@@ -3,7 +3,7 @@
     <view class="back-button" hover-class="back-button-hover" bindtap="goBack" aria-label="返回首页">
       <ui-icon name="arrow-left" size="21" />
     </view>
-    <text class="mode-title">视频生成 Motion Photo</text>
+    <text class="mode-title">{{pageTitle}}</text>
   </view>
 
   <view class="privacy-note">
@@ -12,13 +12,22 @@
   </view>
 
   <view class="section-heading">
-    <text>选择片段和封面，生成 Samsung Motion Photo。</text>
+    <text>{{manualMode ? '选择一张照片和一段视频，在本机合成动态照片。' : '拖动起点、终点和封面，在此页面完成制作。'}} 支持 MP4 / MOV，输入不超过 60 MB，输出片段不超过 20 MB。</text>
+  </view>
+
+  <view wx:if="{{manualMode}}" class="frame-card photo-card">
+    <view class="frame-heading"><text class="frame-heading-title">封面照片</text></view>
+    <image wx:if="{{photo}}" class="jpeg-result-image" src="{{photo.path}}" mode="aspectFit" bindtap="onPreviewCover" />
+    <button class="secondary-button trim-button" disabled="{{picking || outputBusy}}" bindtap="onChoosePhoto">{{photo ? '更换照片' : '选择照片'}}</button>
+    <view class="photo-fit-row"><text>按视频比例居中裁切封面</text><switch checked="{{photoFit}}" disabled="{{picking || outputBusy}}" bindchange="onPhotoFitChange" color="#2869e8" /></view>
+    <text class="editor-hint">JPEG / PNG，其他图片格式取决于设备支持。</text>
+    <view wx:if="{{photoError}}" class="error-card"><text>{{photoError}}</text></view>
   </view>
 
   <view wx:if="{{!video}}" class="upload-zone" hover-class="upload-zone-hover" bindtap="onChooseVideo">
     <view class="upload-icon"><ui-icon name="film-muted" size="25" /></view>
     <text class="upload-title">{{pickingLabel}}</text>
-    <text class="upload-caption">MP4 视频 · 仅本机处理</text>
+    <text class="upload-caption">MP4 / MOV 视频 · 仅本机处理</text>
   </view>
 
   <view wx:else class="upload-zone is-compact" hover-class="upload-zone-hover" bindtap="onChooseVideo">
@@ -35,7 +44,7 @@
 
   <view wx:if="{{video}}" class="frame-card">
     <view class="frame-heading">
-      <text class="frame-heading-title">选择视频片段</text>
+      <text class="frame-heading-title">视频预览与封面</text>
       <text class="frame-heading-time">{{video.durationLabel}}</text>
     </view>
 
@@ -55,10 +64,18 @@
         bindplay="onPreviewPlay"
         bindpause="onPreviewPause"
         bindended="onPreviewEnded"
+        bindtimeupdate="onPreviewTimeUpdate"
         binderror="onVideoError"
       />
-      <image wx:if="{{coverPreviewPath && !previewPlaying}}" class="frame-cover-preview" src="{{coverPreviewPath}}" mode="aspectFit" />
+      <image wx:if="{{!manualMode && coverPreviewPath && !previewPlaying}}" class="frame-cover-preview" src="{{coverPreviewPath}}" mode="aspectFit" />
     </view>
+
+    <button class="secondary-button trim-button" disabled="{{picking || capturingCover || outputBusy}}" bindtap="togglePreviewPlayback">{{previewPlaying ? '暂停预览' : '播放所选片段'}}</button>
+    <view class="clip-summary"><text>片段 {{clipStartLabel}} — {{clipEndLabel}}</text><text class="frame-slider-current">{{clipDurationLabel}}</text></view>
+    <view class="clip-control"><text>起点</text><slider min="0" max="{{video.durationSeconds}}" step="0.05" value="{{clipStartSeconds}}" data-edge="start" disabled="{{picking || capturingCover || outputBusy}}" bindchange="onClipChange" activeColor="#2869e8" block-size="20" /></view>
+    <view class="clip-control"><text>终点</text><slider min="0" max="{{video.durationSeconds}}" step="0.05" value="{{clipEndSeconds}}" data-edge="end" disabled="{{picking || capturingCover || outputBusy}}" bindchange="onClipChange" activeColor="#2869e8" block-size="20" /></view>
+    <view class="clip-reset" bindtap="onResetClip">恢复完整视频</view>
+    <text class="editor-hint">生成时快速裁剪并保留原编码，部分视频会保留片段前的解码帧；播放从所选起点开始。</text>
     <view wx:if="{{previewStatus === 'loading'}}" class="preview-status">正在准备视频预览…</view>
     <view wx:if="{{previewError}}" class="error-card preview-error-card">
       <view class="error-mark">!</view>
@@ -66,24 +83,24 @@
     </view>
 
     <view class="frame-slider-summary">
-      <text>拖动选择封面</text>
+      <text>{{manualMode ? '照片对应的视频时刻' : '拖动选择封面'}}</text>
       <text class="frame-slider-current">{{coverTimeLabel}}</text>
     </view>
     <slider
       class="frame-slider"
-      min="0"
+      min="{{clipStartSeconds}}"
       max="{{sliderMaxSeconds}}"
       step="0.05"
       value="{{flow.coverTimeSeconds}}"
       block-size="20"
       activeColor="#2869e8"
       backgroundColor="#e8edf3"
-      disabled="{{capturingCover}}"
+      disabled="{{capturingCover || outputBusy || picking}}"
       bindchange="onCoverChange"
     />
     <view class="frame-slider-labels">
-      <text>起点 00:00.0</text>
-      <text>全片 {{video.durationLabel}}</text>
+      <text>起点 {{clipStartLabel}}</text>
+      <text>终点 {{clipEndLabel}}</text>
     </view>
 
     <view wx:if="{{capturingCover}}" class="progress-card">
@@ -98,21 +115,36 @@
       <view class="error-copy">
         <text>{{coverError}}</text>
         <text wx:if="{{!capturingCover}}" class="error-retry" bindtap="retryCoverCapture">重试提取</text>
+        <text wx:if="{{coverDiagnosticText}}" class="error-diagnostic" bindtap="copyCaptureDiagnostics">复制诊断信息</text>
       </view>
     </view>
   </view>
 
-  <view wx:if="{{showJpegResult}}" class="jpeg-result-card">
+  <view wx:if="{{outputStatus}}" class="output-status" role="status">{{outputStatus}}</view>
+  <view wx:if="{{outputError}}" class="error-card">
+    <view class="error-mark">!</view>
+    <view class="error-copy">
+      <text>{{outputError}}</text>
+      <text wx:if="{{albumPermissionDenied}}" class="error-retry" bindtap="openAlbumSettings">打开相册权限设置</text>
+    </view>
+  </view>
+
+  <view wx:if="{{showMotionResult}}" class="jpeg-result-card">
     <view class="jpeg-result-heading">
       <view class="success-mark">✓</view>
       <view class="jpeg-result-copy">
-        <text class="jpeg-result-title">封面 JPEG 已生成</text>
-        <text class="jpeg-result-detail">{{coverFrameInfo.width}} × {{coverFrameInfo.height}} · {{coverTimeLabel}}</text>
+        <text class="jpeg-result-title">Motion Photo 已生成</text>
+        <text class="jpeg-result-detail">{{outputInfo.sizeLabel}} · 封面 {{coverTimeLabel}}</text>
       </view>
-      <text class="jpeg-result-format">JPEG</text>
+      <text class="jpeg-result-format">JPG + MP4</text>
     </view>
-    <image class="jpeg-result-image" src="{{flow.outputPath}}" mode="aspectFit" bindtap="onPreviewJpeg" />
-    <view class="jpeg-result-preview" hover-class="jpeg-result-preview-hover" bindtap="onPreviewJpeg">点按预览封面</view>
+    <image class="jpeg-result-image" src="{{coverPreviewPath}}" mode="aspectFit" bindtap="onPreviewCover" />
+    <text class="result-file-name">{{outputInfo.name}}</text>
+    <text class="editor-hint">预览显示静态封面，动态效果请在三星相册中查看。若相册保存丢失动态数据，可导出原文件。</text>
+    <view class="result-actions">
+      <button class="secondary-button" disabled="{{outputBusy || picking}}" bindtap="onExportFile">导出原文件</button>
+      <button class="secondary-button" disabled="{{outputBusy || picking}}" bindtap="onVerifyAlbumPhoto">从相册校验</button>
+    </view>
   </view>
 
   <canvas id="frame-source-canvas" type="2d" class="export-canvas"></canvas>
@@ -123,13 +155,13 @@
       <ui-icon name="images-white" size="19" />
       <text>生成 Motion Photo</text>
     </view>
-    <view wx:elif="{{showJpegResult}}" class="primary-button primary-button-hover" bindtap="onPreviewJpeg">
+    <button wx:elif="{{showMotionResult}}" class="primary-button" disabled="{{outputBusy || picking}}" loading="{{outputBusy}}" bindtap="onSaveMotionPhoto">
       <ui-icon name="images-white" size="19" />
-      <text>预览封面 JPEG</text>
-    </view>
-    <view wx:else class="primary-button {{(!coverFrameInfo || capturingCover) ? 'is-disabled' : ''}}" aria-disabled="{{!coverFrameInfo || capturingCover}}" hover-class="primary-button-hover" bindtap="onGenerateCover">
+      <text>保存到相册</text>
+    </button>
+    <button wx:else class="primary-button" disabled="{{!coverFrameInfo || capturingCover || outputBusy || picking}}" loading="{{capturingCover || outputBusy}}" hover-class="primary-button-hover" bindtap="onGenerateMotionPhoto">
       <ui-icon name="images-white" size="19" />
-      <text>{{capturingCover ? '正在生成封面…' : '生成封面 JPEG'}}</text>
-    </view>
+      <text>{{capturingCover ? '正在提取封面…' : outputBusy ? '正在生成…' : '生成 Motion Photo'}}</text>
+    </button>
   </view>
 </view>

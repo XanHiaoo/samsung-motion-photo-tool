@@ -14,8 +14,6 @@ function createInitialVideoState() {
     durationSeconds: 0,
     width: 0,
     height: 0,
-    clipStartSeconds: 0,
-    clipEndSeconds: 0,
     coverTimeSeconds: 0,
     coverPath: null,
     outputPath: null,

@@ -1,0 +1,31 @@
+<view class="video-page" style="padding-top: {{insets.videoTopRpx}}rpx; padding-bottom: {{insets.videoBottomRpx}}rpx;">
+  <view class="mode-header"><view class="back-button" bindtap="goBack" aria-label="返回首页"><ui-icon name="arrow-left" size="21" /></view><text class="mode-title">批量转换动态照片</text></view>
+  <view class="privacy-note"><ui-icon name="lock-muted" size="16" /><text>仅在本机处理，不会上传</text></view>
+  <view class="section-heading"><text>将含内嵌视频的 JPG / HEIC 转为 Samsung Motion Photo，每次最多 9 张。普通静态照片无法转换。</text></view>
+  <view class="batch-imports">
+    <button class="secondary-button" disabled="{{picking || working || saving || items.length >= 9}}" bindtap="chooseAlbum">从相册选择原图</button>
+    <button class="secondary-button" disabled="{{picking || working || saving || items.length >= 9}}" bindtap="chooseFiles">从聊天文件选择</button>
+  </view>
+  <text class="editor-hint">若相册导入丢失动态数据，请将原始动态照片作为文件发送后，使用“从聊天文件选择”。每个输入不超过 60 MB，内嵌视频不超过 20 MB。HEIC 解码取决于设备支持。</text>
+  <view wx:if="{{items.length}}" class="batch-progress"><text>已处理 {{completed}} / {{items.length}}，成功 {{succeeded}}</text><progress percent="{{progress}}" stroke-width="5" activeColor="#2869e8" /></view>
+  <view wx:if="{{notice}}" class="output-status" role="status">{{notice}}</view>
+  <button wx:if="{{permissionDenied}}" class="secondary-button trim-button" bindtap="openSettings">打开相册权限设置</button>
+  <view wx:for="{{items}}" wx:key="id" class="frame-card batch-item">
+    <view class="batch-item-header"><text class="batch-name">{{item.name}}</text><text class="batch-state {{item.status}}">{{item.statusLabel}}</text></view>
+    <text class="editor-hint">{{item.sizeLabel}}{{item.saved ? ' · 已保存到相册' : ''}}</text>
+    <view wx:if="{{item.error}}" class="error-card"><text>{{item.error}}</text></view>
+    <view wx:if="{{item.saveError}}" class="error-card"><text>{{item.saveError}}</text></view>
+    <view class="result-actions">
+      <button wx:if="{{item.status === 'success'}}" class="secondary-button" disabled="{{working || saving || picking}}" data-id="{{item.id}}" bindtap="saveItem">{{item.saved ? '再次保存' : '保存到相册'}}</button>
+      <button wx:if="{{item.status === 'success'}}" class="secondary-button" disabled="{{working || saving || picking}}" data-id="{{item.id}}" bindtap="exportItem">导出文件</button>
+      <button wx:if="{{item.status === 'error'}}" class="secondary-button" disabled="{{working || saving || picking}}" data-id="{{item.id}}" bindtap="retryItem">重试转换</button>
+      <button class="secondary-button" disabled="{{working || saving || picking}}" data-id="{{item.id}}" bindtap="removeItem">移除</button>
+    </view>
+  </view>
+  <button wx:if="{{succeeded}}" class="secondary-button trim-button" disabled="{{working || saving || picking}}" bindtap="saveAll">保存全部未保存结果</button>
+  <canvas id="batch-source-canvas" type="2d" class="export-canvas"></canvas><canvas id="batch-output-canvas" type="2d" class="export-canvas"></canvas>
+  <view class="bottom-action" style="bottom: {{insets.actionBottomRpx}}rpx;">
+    <button wx:if="{{working}}" class="primary-button" disabled="{{stopRequested}}" bindtap="stopConversion">{{stopRequested ? '正在暂停…' : '暂停转换'}}</button>
+    <button wx:else class="primary-button" disabled="{{!items.length || picking || saving || (completed === items.length && succeeded === items.length)}}" loading="{{saving || picking}}" bindtap="onConvert">{{saving ? '正在保存…' : '开始 / 继续转换'}}</button>
+  </view>
+</view>

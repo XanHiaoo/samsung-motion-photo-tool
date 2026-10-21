@@ -12,33 +12,25 @@
     <text class="home-subtitle">轻松生成 Samsung Motion Photo</text>
   </view>
 
-  <text class="section-label">选择创建方式</text>
+  <text class="section-label">开始制作</text>
 
   <view class="home-actions">
     <view class="home-card home-card-primary" hover-class="card-primary-hover" bindtap="openVideo">
       <view class="home-card-icon primary-icon"><ui-icon name="film-white" size="22" /></view>
       <view class="home-card-copy primary-copy">
         <text class="home-card-title">视频生成动态图</text>
-        <text class="home-card-subtitle">截取片段，选择一帧作封面</text>
+        <text class="home-card-subtitle">剪辑视频，选封面，保存动态图</text>
       </view>
       <ui-icon class="home-chevron primary-chevron" name="chevron-white" size="18" />
     </view>
 
-    <view class="home-secondary-row">
-      <view class="home-card home-card-secondary" hover-class="card-hover" bindtap="openBatch">
-        <view class="home-card-icon secondary-icon-green"><ui-icon name="stack-green" size="21" /></view>
-        <text class="home-card-title secondary-title">批量转换</text>
-        <text class="home-card-subtitle secondary-subtitle">一次转换多个动态照片</text>
-        <ui-icon class="home-chevron secondary-chevron" name="chevron-gray" size="18" />
-      </view>
-
-      <view class="home-card home-card-secondary" hover-class="card-hover" bindtap="openManual">
-        <view class="home-card-icon secondary-icon-purple"><ui-icon name="combine-purple" size="21" /></view>
-        <text class="home-card-title secondary-title">照片 + 视频</text>
-        <text class="home-card-subtitle secondary-subtitle">组合成动态照片</text>
-        <ui-icon class="home-chevron secondary-chevron" name="chevron-gray" size="18" />
-      </view>
+    <view class="home-card home-card-extra" hover-class="card-extra-hover" bindtap="openBatch">
+      <text class="home-card-title">批量转换</text><text class="home-card-subtitle">导入原始动态照片，逐个转换并保存</text>
     </view>
+    <view class="home-card home-card-extra" hover-class="card-extra-hover" bindtap="openManual">
+      <text class="home-card-title">照片 + 视频</text><text class="home-card-subtitle">自选照片封面，搭配一段视频</text>
+    </view>
+
   </view>
 
   <view class="home-bottom-meta">
